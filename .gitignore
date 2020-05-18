@@ -1,0 +1,4 @@
+.vscode/
+.mypy/
+.pylint/
+__pycache__
