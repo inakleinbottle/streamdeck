@@ -1,9 +1,9 @@
 
-__all__ = [ "Page", "get_page" ]
+__all__ = [ "Page", "get_page", "MainPage" ]
 
 
 from .base import Page, get_page
 
 
 
-from .mainpage import MainPage
+from .main import MainPage

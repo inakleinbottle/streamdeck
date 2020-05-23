@@ -8,10 +8,24 @@ import pathlib
 from PIL import Image, ImageDraw, ImageFont
 from StreamDeck.ImageHelpers import PILHelper
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import Dict
+
 
 LOGGER = logging.getLogger(__name__)
 
-PAGE_REGISTRY = {}
+
+PAGE_REGISTRY: "Dict[str, Page]" = {}
+
+
+def create_action_method(coro, *args, **kwargs):
+    #@functools.wraps(coro)
+    async def method(self):
+        nonlocal args, kwargs
+        LOGGER.info(f"Calling {coro.__name__}{args}")
+        p = await coro(self, *args, **kwargs)
+    return method
 
 
 async def get_page(name):
@@ -38,7 +52,7 @@ class Page(metaclass=PageMeta):
     pressed_threshold = 3.0
     heatbeat_time = 30.0
 
-    asset_path = pathlib.Path()
+    asset_path = pathlib.Path("~/.local/share/streamdeck").expanduser()
     label_font = "Roboto-Regular.ttf"
     deck_type = "StreamDeck"
 
@@ -51,13 +65,14 @@ class Page(metaclass=PageMeta):
         """
         Action called when a specific action has not been created.
         """
-        pass
+        LOGGER.info("No action detected, using default")
 
     async def alt_dispatch(self, button):
         """
         Dispatcher for long press actions.
         """
         func = getattr(self, f"alt_button_{button}", self.default_action)
+
         await func()
 
     async def dispatch(self, button, status):
@@ -77,11 +92,14 @@ class Page(metaclass=PageMeta):
 
         # long press
         if pressed_time >= self.pressed_threshold:
-            await self.alt_dispatch(button)
+            LOGGER.info("Long press detected")
+            await self.alt_dispatch(button+1)
             return
 
+        LOGGER.info(f"Short press detected, calling `button_{button+1}`")
+
         # short press
-        func = getattr(self, f"button_{button}", self.default_action)
+        func = getattr(self, f"button_{button+1}", self.default_action)
         await func()
         return
 
@@ -105,6 +123,7 @@ class Page(metaclass=PageMeta):
         Used to periodically update the page attributes according
         to the system environment.
         """
+        pass
 
     @functools.lru_cache
     async def render_image_from_file(self, icon: str, label: str):
@@ -123,24 +142,23 @@ class Page(metaclass=PageMeta):
 
         image = PILHelper.create_image(self.controller.deck)
 
-        if icon.is_file():
+        if icon_path.is_file():
             LOGGER.info(f"Rendering icon {icon}")
-            icon_image = Image.open(icon_path).convert("RGBA")
+            icon_image = Image.open(str(icon_path)).convert("RGBA")
             icon_image.thumbnail((image.width, image.height - 20), Image.LANCZOS)
-            icon_pos = ((image.width - icon.width) // 2, 0)
+            icon_pos = ((image.width - icon_image.width) // 2, 0)
             image.paste(icon_image, icon_pos, icon_image)
         else:
             LOGGER.warning(f"Icon {icon} cannot be found")
 
         draw = ImageDraw.Draw(image)
         font_path = self.asset_path / "fonts" / self.label_font
-        font = ImageFont.truetype(font_path, 14)
+        font = ImageFont.truetype(str(font_path), 14)
         label_w, _ = draw.textsize(label, font=font)
         label_pos = ((image.width - label_w) // 2, image.height - 20)
         draw.text(label_pos, text=label, font=font, fill="white")
 
         return PILHelper.to_native_format(self.controller.deck, image)
-
 
     async def render(self):
         """
@@ -149,9 +167,5 @@ class Page(metaclass=PageMeta):
         This should call the controller instance `set_image` for each
         button to set the image.
         """
-
-    
-
-
-        
+        pass
 
