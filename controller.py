@@ -4,6 +4,9 @@ import pathlib
 import time
 import traceback
 
+
+from StreamDeck.Devices.StreamDeck import StreamDeck
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -14,6 +17,8 @@ class Controller:
         self.loop = loop or asyncio.get_event_loop()
         self.deck = deck
 
+        self._lock = asyncio.Lock(loop=self.loop)
+
         page = self.load_page("main")
         self.default_page = page
         self.current_page = page
@@ -22,6 +27,9 @@ class Controller:
 
         self.force_reload_page = False
         self.heartbeat_delay = 60
+
+        self.current_heartbeat_task = None
+
 
     @staticmethod
     def load_page(page):
@@ -61,6 +69,15 @@ class Controller:
         deck = deck or self.deck
         LOGGER.info(f"Updating deck {deck.id()}")
         await self.current_page.draw_buttons(deck)
+
+
+    async def set_image(self, button: int, image):
+        """
+        Set the image on a button of the deck.
+        """
+        async with self._lock:
+            self.deck.set_key_image(button, image)
+
 
 
     async def setup(self, deck):
