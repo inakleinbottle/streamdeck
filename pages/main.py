@@ -5,6 +5,7 @@ import simpleobsws as obs
 
 from .base import Page, create_action_method
 from .commands import launch_shell
+from .menu import MainMenuPage
 
 LOGGER = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ class MainPage(Page):
         button_5_icon = self.button_5_icon[obs_state]
         button_6_icon = self.button_6_icon
 
-        images = await asyncio.gather(
+        return await asyncio.gather(
             self.render_image_from_file(button_1_icon, button_1_label),
             self.render_image_from_file(button_2_icon, button_2_label),
             self.render_image_from_file(button_3_icon, button_3_label),
@@ -71,15 +72,20 @@ class MainPage(Page):
             self.render_image_from_file(button_5_icon, button_5_label),
             self.render_image_from_file(button_6_icon, button_6_label)
         )
-        
-        await asyncio.gather(
-            *[self.controller.set_image(i, image)
-            for i, image in enumerate(images)]
-        )
+
+    async def setup(self):
+        LOGGER.info(f"Running page {self} setup")
+        self.obs_ws = ws = obs.obsws(loop=self.controller.loop)
+        ws.register(self.connection_lost_callback, "Exiting")
+        ws.register(self.recording_started_callback, "RecordingStarted")
+        ws.register(self.recording_paused_callback, "RecordingPaused")
+        ws.register(self.recording_stopped_callback, "RecordingStopping")
+        await self.connect_obs()
 
 
     async def obs_call(self, cmd, data=None):
         ws = self.obs_ws
+        LOGGER.debug(f"Calling OBS command {cmd}")
         try:
             result = await ws.call(cmd, data)
         except obs.ConnectionFailure:
@@ -105,33 +111,36 @@ class MainPage(Page):
         return False
 
     async def obs_conn_alive(self):
-        return self.obs_ws.recv_task is not None
+        try:
+            return self.obs_ws.recv_task is not None
+        except Exception as e:
+            LOGGER.error(e)
+            return False
 
     async def connection_lost_callback(self, data=None):
         LOGGER.info("OBS connection lost event callback")
         async with self._lock:
             await self.obs_ws.disconnect()
             self.obs_state = "stopped"
-            await self.controller.update_deck()
-            self.obs_ws = None
+        await self.controller.update_deck()
 
     async def recording_started_callback(self, data=None):
         async with self._lock:
             LOGGER.info("Recording started event callback")
-            self.obs_state.state = "recording"
-            await self.controller.update_deck()
+            self.obs_state = "recording"
+        await self.controller.update_deck()
 
     async def recording_paused_callback(self, data=None):
         async with self._lock:
             LOGGER.info("Recording paused event callback")
             self.obs_state = "paused"
-            await self.controller.update_deck()
+        await self.controller.update_deck()
 
     async def recording_stopped_callback(self, data=None):
         async with self._lock:
             LOGGER.info("Recording stopped event callback")
             self.obs_state = "stopped"
-            await self.controller.update_deck()
+        await self.controller.update_deck()
 
     button_1 = create_action_method(launch_shell, "gnome-terminal")
     alt_button_1 = button_1
@@ -156,7 +165,8 @@ class MainPage(Page):
         """
         Open main menu page
         """
-        pass
+        LOGGER.info("Loading menu page")
+        await self.controller.set_next_page(MainMenuPage)
 
     alt_button_4 = button_4
 
@@ -164,15 +174,13 @@ class MainPage(Page):
         """
         Start/pause recording
         """
-        
-        if not await self.obs_conn_alive():
-            if not await self.connect_obs():
-                LOGGER.info("No OBS connection, returning")
-                return None
 
-        with self._lock:
+        LOGGER.info("Getting OBS state")
+        async with self._lock:
+            LOGGER.debug("Aquired lock")
             state = self.obs_state
 
+        LOGGER.debug(f"Current OBS state {state}")
         if state == "stopped":
             LOGGER.info("Starting OBS recording")
             await self.obs_call("StartRecording")

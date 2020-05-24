@@ -20,11 +20,11 @@ PAGE_REGISTRY: "Dict[str, Page]" = {}
 
 
 def create_action_method(coro, *args, **kwargs):
-    #@functools.wraps(coro)
+    @functools.wraps(coro)
     async def method(self):
         nonlocal args, kwargs
         LOGGER.info(f"Calling {coro.__name__}{args}")
-        p = await coro(self, *args, **kwargs)
+        await coro(self, *args, **kwargs)
     return method
 
 
@@ -34,10 +34,29 @@ async def get_page(name):
     """
     global PAGE_REGISTRY
     if name in PAGE_REGISTRY:
+        LOGGER.info(f"Got page {name} from registry")
         return PAGE_REGISTRY["name"]
     
     # TODO: Implement loading from spec files
     LOGGER.warning(f"No page named {name}")
+
+
+
+def cache(coro):
+    coro_cache = {}
+    lock = asyncio.Lock()
+    @functools.wraps(coro)
+    async def wrapper(self, *args):
+        LOGGER.debug(f"Loading {args} from cache")
+        async with lock:
+            if args in coro_cache:
+                return coro_cache[args]
+            result = await coro(self, *args)
+            coro_cache[args] = result
+            return result
+    return wrapper
+
+
 
 
 class PageMeta(type):
@@ -60,6 +79,9 @@ class Page(metaclass=PageMeta):
         self.controller = controller
         self._lock = asyncio.Lock()
         self._pressed = None
+
+    def __str__(self):
+        return f"Deck {self.__class__.__name__}"
 
     async def default_action(self):
         """
@@ -125,16 +147,13 @@ class Page(metaclass=PageMeta):
         """
         pass
 
-    @functools.lru_cache
+    @cache
     async def render_image_from_file(self, icon: str, label: str):
         """
         Render the image from file into an image with optional label.
 
-        this function code is based on the render helper function from the
+        this funckwargstion code is based on the render helper function from the
         python-elgato-streamdeck example code.
-
-        This function uses a lru cache to cache past executions so that
-        subsequent calls will not incur additional overhead.
 
         Missing icons are not rendered
         """
@@ -164,8 +183,7 @@ class Page(metaclass=PageMeta):
         """
         Render the page images on the deck.
 
-        This should call the controller instance `set_image` for each
-        button to set the image.
+        This should return a list of images to render on the deck.
         """
         pass
 
