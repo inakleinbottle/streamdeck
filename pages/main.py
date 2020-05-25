@@ -6,6 +6,7 @@ import simpleobsws as obs
 from .base import Page, create_action_method
 from .commands import launch_shell
 from .menu import MainMenuPage
+from .clock import ClockPage
 
 LOGGER = logging.getLogger(__name__)
 
@@ -82,7 +83,6 @@ class MainPage(Page):
         ws.register(self.recording_stopped_callback, "RecordingStopping")
         await self.connect_obs()
 
-
     async def obs_call(self, cmd, data=None):
         ws = self.obs_ws
         LOGGER.debug(f"Calling OBS command {cmd}")
@@ -117,6 +117,15 @@ class MainPage(Page):
             LOGGER.error(e)
             return False
 
+    async def heartbeat(self):
+        while True:
+            try:
+                await asyncio.sleep(self.heartbeat_time)
+                if not await self.obs_conn_alive():
+                    await self.connect_obs()
+            except asyncio.CancelledError:
+                break
+
     async def connection_lost_callback(self, data=None):
         LOGGER.info("OBS connection lost event callback")
         async with self._lock:
@@ -149,7 +158,8 @@ class MainPage(Page):
         """
         Display clock page
         """
-        pass
+        LOGGER.info("Loading clock page")
+        await self.controller.set_next_page(ClockPage)
 
     alt_button_2 = button_2
 

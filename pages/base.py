@@ -3,7 +3,7 @@ import time
 import logging
 import functools
 import pathlib
-
+from collections import defaultdict
 
 from PIL import Image, ImageDraw, ImageFont
 from StreamDeck.ImageHelpers import PILHelper
@@ -47,16 +47,15 @@ def cache(coro):
     lock = asyncio.Lock()
     @functools.wraps(coro)
     async def wrapper(self, *args):
-        LOGGER.debug(f"Loading {args} from cache")
         async with lock:
             if args in coro_cache:
+                LOGGER.debug(f"Loading {args} from cache")
                 return coro_cache[args]
+            LOGGER.debug(f"Computing {args} for cache")
             result = await coro(self, *args)
             coro_cache[args] = result
             return result
     return wrapper
-
-
 
 
 class PageMeta(type):
@@ -69,7 +68,7 @@ class PageMeta(type):
 
 class Page(metaclass=PageMeta):
     pressed_threshold = 3.0
-    heatbeat_time = 30.0
+    heartbeat_time = 60.0
 
     asset_path = pathlib.Path("~/.local/share/streamdeck").expanduser()
     label_font = "Roboto-Regular.ttf"
@@ -145,7 +144,20 @@ class Page(metaclass=PageMeta):
         Used to periodically update the page attributes according
         to the system environment.
         """
-        pass
+        while True:
+            try:
+                await asyncio.sleep(self.heartbeat_time)
+            except asyncio.CancelledError:
+                break
+
+    @cache
+    async def get_font(self, font: str, size: int) -> ImageFont.ImageFont:
+        """
+        Load the font from file with the given size, return the
+        font as n ImageFont.
+        """
+        font_path = self.asset_path / "fonts" / font
+        return ImageFont.truetype(str(font_path), size)
 
     @cache
     async def render_image_from_file(self, icon: str, label: str):
@@ -155,27 +167,29 @@ class Page(metaclass=PageMeta):
         this funckwargstion code is based on the render helper function from the
         python-elgato-streamdeck example code.
 
-        Missing icons are not rendered
+        Missing icons are not rendered.
         """
-        icon_path = self.asset_path / "icons" / icon
-
         image = PILHelper.create_image(self.controller.deck)
 
-        if icon_path.is_file():
-            LOGGER.info(f"Rendering icon {icon}")
-            icon_image = Image.open(str(icon_path)).convert("RGBA")
-            icon_image.thumbnail((image.width, image.height - 20), Image.LANCZOS)
-            icon_pos = ((image.width - icon_image.width) // 2, 0)
-            image.paste(icon_image, icon_pos, icon_image)
-        else:
-            LOGGER.warning(f"Icon {icon} cannot be found")
+        if icon:
+            icon_path = self.asset_path / "icons" / icon
 
-        draw = ImageDraw.Draw(image)
-        font_path = self.asset_path / "fonts" / self.label_font
-        font = ImageFont.truetype(str(font_path), 14)
-        label_w, _ = draw.textsize(label, font=font)
-        label_pos = ((image.width - label_w) // 2, image.height - 20)
-        draw.text(label_pos, text=label, font=font, fill="white")
+            if icon_path.is_file():
+                LOGGER.info(f"Rendering icon {icon}")
+                icon_image = Image.open(str(icon_path)).convert("RGBA")
+                icon_image.thumbnail((image.width, image.height - 20), Image.LANCZOS)
+                icon_pos = ((image.width - icon_image.width) // 2, 0)
+                image.paste(icon_image, icon_pos, icon_image)
+            else:
+                LOGGER.warning(f"Icon {icon} cannot be found")
+
+        if label:
+            LOGGER.debug("Getting font and rendering label")
+            draw = ImageDraw.Draw(image)
+            font = await self.get_font(self.label_font, 14)
+            label_w, _ = draw.textsize(label, font=font)
+            label_pos = ((image.width - label_w) // 2, image.height - 20)
+            draw.text(label_pos, text=label, font=font, fill="white")
 
         return PILHelper.to_native_format(self.controller.deck, image)
 

@@ -13,17 +13,12 @@ from StreamDeck.DeviceManager import DeviceManager
 from controller import Controller
 
 
-
 MAIN_LOOP_SLEEP = 60
 
 LOGGER = logging.getLogger(__name__)
 
 
-
-
-        
-
-DECKS = {}
+DECKS = {} # type: ignore
 
 
 @asynccontextmanager

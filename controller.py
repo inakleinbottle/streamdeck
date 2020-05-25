@@ -39,7 +39,6 @@ class Controller:
             else:
                 LOGGER.info(f"Loading new page {name}")
                 new_page = page(self)
-                LOGGER.info(new_page)
                 self.page_cache[name] = new_page
         elif page in self.page_cache:
             LOGGER.info(f"Loading cached paged {page}")
@@ -57,6 +56,7 @@ class Controller:
             self.previous_page = self.current_page
             self.current_page = new_page
 
+        await self.update_heartbeat()
         await self.update_deck()
 
     async def return_to_previous_page(self):
@@ -67,6 +67,7 @@ class Controller:
             self.previous_page = self.current_page
             self.current_page = page
         LOGGER.debug("Released lock")
+        await self.update_heartbeat()
         await self.update_deck()
 
     async def update_deck(self):
@@ -85,7 +86,18 @@ class Controller:
         """
         self.deck.set_key_image(button, image)
 
+    async def update_heartbeat(self):
+        LOGGER.debug("Updating heartbeat task")
+        async with self._lock: 
+            if (task:=self.current_heartbeat_task) is not None:
+                LOGGER.debug("Cancelling current heartbeat")
+                task.cancel()
+            LOGGER.debug("Creating new heartbeat coroutine")
+            coro = self.current_page.heartbeat()
+            self.current_heartbeat_task = self.loop.create_task(coro)
+
     async def setup(self):
+        await self.update_heartbeat()
         await self.current_page.setup()
 
     def heartbeat(self):
