@@ -6,11 +6,11 @@ import logging
 import os
 import sys
 from subprocess import DEVNULL
+import traceback
 
 from StreamDeck.DeviceManager import DeviceManager
 
 from controller import Controller
-
 
 
 MAIN_LOOP_SLEEP = 60
@@ -18,11 +18,7 @@ MAIN_LOOP_SLEEP = 60
 LOGGER = logging.getLogger(__name__)
 
 
-
-
-        
-
-DECKS = {}
+DECKS = {} # type: ignore
 
 
 @asynccontextmanager
@@ -44,8 +40,8 @@ async def setup_decks():
             DECKS[i_d] = controller 
 
         deck.set_key_callback_async(controller)
-        await controller.setup(deck)
-        await controller.update_deck(deck)
+        await controller.setup()
+        await controller.update_deck()
 
     try:
         yield devices
@@ -58,6 +54,8 @@ async def setup_decks():
 
 def exception_handler(loop, context):
     LOGGER.error(f"{context['message']}")
+    if "source_traceback" in context:
+        print(context["source_traceback"])
 
 async def main():
     LOGGER.info("Starting main application")
@@ -83,6 +81,8 @@ async def main():
 
 
 if __name__ == "__main__":
-    
-    logging.basicConfig(level=logging.INFO)
-    asyncio.run(main())
+    debug = "STREAMDECK_DEBUG" in os.environ
+    level = logging.DEBUG if debug else logging.WARNING
+
+    logging.basicConfig(level=level)
+    asyncio.run(main(), debug=debug)
