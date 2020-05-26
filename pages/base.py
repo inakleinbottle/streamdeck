@@ -136,7 +136,7 @@ class Page(metaclass=PageMeta):
         """
         pass
 
-    async def heatbeat(self):
+    async def heartbeat(self):
         """
         Called periodically by the controller, according to the
         heartbeat time class attribute.

@@ -93,8 +93,10 @@ class Controller:
                 LOGGER.debug("Cancelling current heartbeat")
                 task.cancel()
             LOGGER.debug("Creating new heartbeat coroutine")
+
             coro = self.current_page.heartbeat()
             self.current_heartbeat_task = self.loop.create_task(coro)
+
 
     async def setup(self):
         await self.update_heartbeat()
