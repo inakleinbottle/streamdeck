@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from .base import Page, create_action_method
+from .commands import launch_shell
 
 LOGGER = logging.getLogger(__name__)
 
@@ -14,14 +15,14 @@ class MainMenuPage(Page):
     deck_type = "StreamDeckMini"
 
     button_1_label = "Steam"
-    button_2_label = "Clock"
+    button_2_label = "Messenger"
     button_3_label = "Mute"
     button_4_label = "Menu"
     button_5_label = "Settings"
     button_6_label = "Back"
 
     button_1_icon = "steam_tray.ico"
-    button_2_icon = "clock.png"
+    button_2_icon = "messenger.png"
     button_3_icon = "mic-on.png"
     button_4_icon = "navigation.png"
     button_5_icon = "settings.png"
@@ -51,12 +52,13 @@ class MainMenuPage(Page):
             self.render_image_from_file(button_6_icon, button_6_label)
         )
 
+    create_action_method(launch_shell, "caprine")    
+
     async def button_6(self):
         LOGGER.info("Back button pressed, returning to previous page")
         await self.controller.return_to_previous_page()
 
     button_1 = button_6
-    button_2 = button_6
     button_3 = button_6
     button_4 = button_6
     button_5 = button_6

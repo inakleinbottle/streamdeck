@@ -65,14 +65,7 @@ async def main():
 
     async with setup_decks():
         while True:
-            debug = "STREAMDECK_DEBUG" in os.environ
-            if debug:
-                LOGGER.setLevel(logging.DEBUG)
-                loop.set_debug(True)
-            elif loop.get_debug():
-                LOGGER.setLevel(logging.WARNING)
-                loop.set_debug(False)
- 
+
             await asyncio.sleep(MAIN_LOOP_SLEEP)
 
             
