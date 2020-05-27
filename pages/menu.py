@@ -52,7 +52,7 @@ class MainMenuPage(Page):
             self.render_image_from_file(button_6_icon, button_6_label)
         )
 
-    create_action_method(launch_shell, "caprine")    
+    button_2 = create_action_method(launch_shell, "caprine")    
 
     async def button_6(self):
         LOGGER.info("Back button pressed, returning to previous page")
