@@ -17,3 +17,13 @@ async def launch_shell(self, cmd):
                 stdout=DEVNULL,
                 stdin=DEVNULL
           )
+
+async def launch_process(self, app, *args):
+    LOGGER.info(f"Starting application {app}")
+    await asyncio.create_subprocess_exec(
+                program=app,
+                args=args,
+                stderr=DEVNULL,
+                stdout=DEVNULL,
+                stdin=DEVNULL
+          )    

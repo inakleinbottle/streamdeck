@@ -1,13 +1,15 @@
 import asyncio
 import logging
 
-from .base import Page, create_action_method
-from .commands import launch_shell
+from .base import StreamDeckMiniPage, create_action_method
+from .commands import launch_shell, launch_process
+from .settings import SettingsPage
+
 
 LOGGER = logging.getLogger(__name__)
 
 
-class MainMenuPage(Page):
+class MainMenuPage(StreamDeckMiniPage):
     """
     Main menu page for my StreamDeck
     """
@@ -16,49 +18,31 @@ class MainMenuPage(Page):
 
     button_1_label = "Steam"
     button_2_label = "Messenger"
-    button_3_label = "Mute"
-    button_4_label = "Menu"
+    button_3_label = "Mail"
+    button_4_label = "System"
     button_5_label = "Settings"
     button_6_label = "Back"
 
     button_1_icon = "steam_tray.ico"
     button_2_icon = "messenger.png"
-    button_3_icon = "mic-on.png"
-    button_4_icon = "navigation.png"
+    button_3_icon = "mail.png"
+    button_4_icon = "sysmon.png"
     button_5_icon = "settings.png"
     button_6_icon = "close.png"
 
-    async def render(self):
-        button_1_label = self.button_1_label
-        button_2_label = self.button_2_label
-        button_3_label = self.button_3_label
-        button_4_label = self.button_4_label
-        button_5_label = self.button_5_label
-        button_6_label = self.button_6_label
+    button_1 = create_action_method(launch_shell, "steam")
+    button_2 = create_action_method(launch_shell, "caprine")   
+    button_3 = create_action_method(launch_shell, "evolution")
+    button_4 = create_action_method(launch_shell, "gnome-system-monitor") 
 
-        button_1_icon = self.button_1_icon
-        button_2_icon = self.button_2_icon
-        button_3_icon = self.button_3_icon
-        button_4_icon = self.button_4_icon
-        button_5_icon = self.button_5_icon
-        button_6_icon = self.button_6_icon
-
-        return await asyncio.gather(
-            self.render_image_from_file(button_1_icon, button_1_label),
-            self.render_image_from_file(button_2_icon, button_2_label),
-            self.render_image_from_file(button_3_icon, button_3_label),
-            self.render_image_from_file(button_4_icon, button_4_label),
-            self.render_image_from_file(button_5_icon, button_5_label),
-            self.render_image_from_file(button_6_icon, button_6_label)
-        )
-
-    button_2 = create_action_method(launch_shell, "caprine")    
+    async def button_5(self):
+        LOGGER.info("Changing to settings page.")
+        await self.controller.set_next_page(SettingsPage)
 
     async def button_6(self):
         LOGGER.info("Back button pressed, returning to previous page")
         await self.controller.return_to_previous_page()
 
-    button_1 = button_6
-    button_3 = button_6
-    button_4 = button_6
-    button_5 = button_6
+    
+    
+    
