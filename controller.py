@@ -6,11 +6,14 @@ import time
 import traceback
 import inspect
 
+from typing import List, Union
+
 from StreamDeck.Devices.StreamDeck import StreamDeck
 from pages import get_page, MainPage, Page
 
-LOGGER = logging.getLogger(__name__)
 
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Controller:
@@ -29,6 +32,7 @@ class Controller:
         self.page_cache["MainPage"] = page
 
         self.current_heartbeat_task = None
+
 
     async def set_next_page(self, page):
         

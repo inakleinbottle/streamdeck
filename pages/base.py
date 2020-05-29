@@ -10,7 +10,8 @@ from StreamDeck.ImageHelpers import PILHelper
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from typing import Dict
+    from typing import Dict, Optional
+    from controller import Controller
 
 
 LOGGER = logging.getLogger(__name__)
@@ -67,12 +68,15 @@ class PageMeta(type):
 
 
 class Page(metaclass=PageMeta):
-    pressed_threshold = 3.0
-    heartbeat_time = 60.0
+    pressed_threshold: float = 3.0
+    heartbeat_time: float = 60.0
 
     asset_path = pathlib.Path("~/.local/share/streamdeck").expanduser()
-    label_font = "Roboto-Regular.ttf"
-    deck_type = "StreamDeck"
+    label_font: str = "Roboto-Regular.ttf"
+    deck_type: str = "StreamDeck"
+
+
+    controller: "Controller"
 
     def __init__(self, controller):
         self.controller = controller
@@ -201,3 +205,52 @@ class Page(metaclass=PageMeta):
         """
         pass
 
+
+
+class StreamDeckMiniPage(Page):
+    """
+    Base class for StreamDeckMini pages.
+
+    Includes an implementation of the render method for
+    simple pages on the stream deck mini. 
+    """
+    deck_type = "StreamDeckMini"
+
+    button_1_label: "Optional[str]" = None
+    button_2_label: "Optional[str]" = None
+    button_3_label: "Optional[str]" = None
+    button_4_label: "Optional[str]" = None
+    button_5_label: "Optional[str]" = None
+    button_6_label: "Optional[str]" = None
+
+    button_1_icon: "Optional[str]" = None
+    button_2_icon: "Optional[str]" = None
+    button_3_icon: "Optional[str]" = None
+    button_4_icon: "Optional[str]" = None
+    button_5_icon: "Optional[str]" = None
+    button_6_icon: "Optional[str]" = None
+
+    async def render(self):
+        LOGGER.debug("Calling render routine")
+        button_1_label = self.button_1_label
+        button_2_label = self.button_2_label
+        button_3_label = self.button_3_label
+        button_4_label = self.button_4_label
+        button_5_label = self.button_5_label
+        button_6_label = self.button_6_label
+
+        button_1_icon = self.button_1_icon
+        button_2_icon = self.button_2_icon
+        button_3_icon = self.button_3_icon
+        button_4_icon = self.button_4_icon
+        button_5_icon = self.button_5_icon
+        button_6_icon = self.button_6_icon
+
+        return await asyncio.gather(
+            self.render_image_from_file(button_1_icon, button_1_label),
+            self.render_image_from_file(button_2_icon, button_2_label),
+            self.render_image_from_file(button_3_icon, button_3_label),
+            self.render_image_from_file(button_4_icon, button_4_label),
+            self.render_image_from_file(button_5_icon, button_5_label),
+            self.render_image_from_file(button_6_icon, button_6_label)
+        )

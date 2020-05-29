@@ -45,6 +45,8 @@ async def setup_decks():
 
     try:
         yield devices
+    except:
+        raise
     finally:
         LOGGER.info("Closing stream decks")
         for deck in devices:
