@@ -86,6 +86,7 @@ class PageStack:
         """
         Get the active page.
         """
+        LOGGER.debug("Getting active page")
         async with self._lock:
             return self._stack[-1]
 
@@ -96,6 +97,7 @@ class PageStack:
         This is used to control the updating of the deck according to
         the current state of the page.
         """
+        LOGGER.debug(f"Getting status for page {page}")
         async with self._lock:
             if self._stack[-1] is page:
                 # The most important case is when the page is active,
@@ -114,6 +116,7 @@ class PageStack:
 
         The name of the page should be provided. 
         """
+        LOGGER.debug(f"Pushing page {page} onto stack")
         async with self._lock:
             await self._push(page)
 
@@ -121,6 +124,7 @@ class PageStack:
         """
         Cancel all active jobs for a page.
         """
+        LOGGER.debug(f"Cancelling jobs for page {page}")
         if isinstance(page, str):
             name = page
         elif isinstance(page, Page):
@@ -141,7 +145,7 @@ class PageStack:
         Pop the page from the stack and unload all of the tasks
         associated with this page.
         """
-
+        LOGGER.debug(f"Popping active page from stack")
         async with self._lock:
             if len(self._stack) > 1:
                 page = self._stack.pop()
@@ -156,6 +160,7 @@ class PageStack:
         """
         Pop all pages back to the root page.
         """
+        LOGGER.debug("Popping all pages from stack")
         async with self._lock:
             while len(self._stack) > bottom:
                 await self.pop()
