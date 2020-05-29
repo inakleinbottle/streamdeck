@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import inspect
+from enum import Enum
 
 
 from collections import defaultdict
@@ -10,8 +11,24 @@ from typing import Dict, List, Optional, Union, TYPE_CHECKING, DefaultDict
 
 from pages.base import Page
 
+if TYPE_CHECKING:
+    from controller import Controller
+
 
 LOGGER = logging.getLogger(__name__)
+
+
+class PageState(Enum):
+    """
+    Status of a page.
+
+    Inactive means the page is not currently on the stack.
+    Loaded means the page is on the stack but not at the top.
+    Active means the page is on top of the stack.
+    """
+    Inactive = 0
+    Loaded = 1
+    Active = 2
 
 
 class PageStack:
@@ -19,14 +36,13 @@ class PageStack:
     Holds the currently active pages in a stack and handles heartbeat
     tasks and other watcher tasks associated with the active pages.
 
-    The idea here is to streamline the finding and loading of pages
-    in a more efficient way. The page stack will keep a list (stack)
-    of the currently active pages. Moving to a new page will correspond
-    to pushing a new page object to the stack, and returning to the 
-    previous pages corresponds to popping the top page from the stack.
-    With this approach, we can ensure that all the tasks and handlers
-    that are associated with a given page are started and cancelled
-    gracefully, and without the need for the controller object.
+    The idea here is to streamline loading of pages. The page stack will 
+    keep a list (stack) of the currently active pages. Moving to a new 
+    page will correspond to pushing a new page object to the stack, and 
+    returning to the previous pages corresponds to popping the top page 
+    from the stack. With this approach, we can ensure that all the tasks
+    and handlers that are associated with a given page are started and 
+    cancelled gracefully, and without the need for the controller object.
 
     The advantage of this method is that we can not only move up and
     down the page stack by 1 position, but we can also quickly return
@@ -37,22 +53,60 @@ class PageStack:
     that should be displayed if a requested page cannot be found.
     """
 
-    def __init__(self, controller: "Controller", root: Page):
+    _stack: List[Page]
+    _tasks: DefaultDict[str, List[asyncio.Task]]
+
+    def __init__(self, root: Page):
         self._lock = asyncio.Lock()
         self._root = root
 
-        self._stack: List[Page] = [root]
-        self._tasks: DefaultDict[str, List[asyncio.Task]] = defaultdict(default_factory=[])
-
-
-    async def find_page(self, name):
-        """
-        Attempt to load the page with the given name.
-        """
-        pass
+        self._stack = [root]
+        self._tasks = defaultdict(list)
 
     async def _push(self, page):
+
+        if page is self._stack[-1]:
+            LOGGER.debug(f"Page {page} currently active")
+            return
+
+        LOGGER.debug(f"Pushing {page} to stack")
+
         self._stack.append(page)
+        name = page.__class__.__name__
+
+        LOGGER.debug(f"Setting up heartbeat task")
+        task = asyncio.create_task(page.heartbeat())
+        self._tasks[name].append(task)
+
+        LOGGER.debug(f"Setting up background tasks")
+        new_tasks = await page.get_background_jobs()
+        self._tasks[name].extend(new_tasks)
+
+    async def current_page(self):
+        """
+        Get the active page.
+        """
+        async with self._lock:
+            return self._stack[-1]
+
+    async def get_status(self, page: Page) -> PageState:
+        """
+        Determine the status of a page.
+
+        This is used to control the updating of the deck according to
+        the current state of the page.
+        """
+        async with self._lock:
+            if self._stack[-1] is page:
+                # The most important case is when the page is active,
+                # because this means something needs to be done to the
+                # deck in most cases. Do this first.
+                return PageState.Active
+            
+            if page in self._stack:
+                return PageState.Loaded
+            
+            return PageState.Inactive
 
     async def push(self, page: Page):
         """
@@ -75,12 +129,10 @@ class PageStack:
             raise TypeError("Page must be either a Page instance or str")
 
         async with self._lock:
-            tasks = self._tasks[name]
+            tasks = self._tasks.pop(name)
 
             for task in tasks:
                 task.cancel()
-
-
 
     async def pop(self):
         """
@@ -98,21 +150,12 @@ class PageStack:
                 LOGGER.warning("Cannot remove root page from stack")
                 return
 
+        await self.cancel_jobs_for_page(page)
+        
+    async def pop_all(self, bottom=1):
+        """
+        Pop all pages back to the root page.
+        """
         async with self._lock:
-            tasks = self._tasks[page.__class__.__name__]
-
-        for task in tasks:
-            try:
-                task.cancel()
-            except Exception as e:
-                LOGGER.debug("An exception occurred whist cancelling task")
-                LOGGER.debug(e)
-        
-
-
-
-        
-
-
-
-
+            while len(self._stack) > bottom:
+                await self.pop()

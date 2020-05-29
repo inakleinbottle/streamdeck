@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from .base import StreamDeckMiniPage, create_action_method
-from .commands import launch_shell, launch_process
+from .commands import launch_shell, launch_process, BackAction
 from .settings import SettingsPage
 
 
@@ -39,9 +39,11 @@ class MainMenuPage(StreamDeckMiniPage):
         LOGGER.info("Changing to settings page.")
         await self.controller.set_next_page(SettingsPage)
 
-    async def button_6(self):
-        LOGGER.info("Back button pressed, returning to previous page")
-        await self.controller.return_to_previous_page()
+    button_6 = BackAction()
+
+    #async def button_6(self):
+    #    LOGGER.info("Back button pressed, returning to previous page")
+    #    await self.controller.return_to_previous_page()
 
     
     

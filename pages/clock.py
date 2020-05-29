@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 from StreamDeck.ImageHelpers import PILHelper
 
 from .base import Page, cache
+from .commands import BackAction
 
 LOGGER = logging.getLogger(__name__)
 
@@ -69,17 +70,39 @@ class ClockPage(Page):
             self.render_image_from_file(button_6_icon, button_6_label)
         )
 
-    async def button_6(self):
-        await self.controller.return_to_previous_page()
+    button_6 = BackAction()
 
     async def heartbeat(self):
+        render_num = self.render_clock_number
+        last = datetime.datetime.now()
+        next_minute_image = None
+        next_hour_image = None
         while True:
-            now = datetime.datetime.now()
             try:
+                next_minute = (last.minute+1) % 60
+                next_hour = (last.hour+1) % 24
+
+                next_minute_minute = await render_num(next_minute)
+                if not next_minute:
+                    next_hour_hour = await render_num(next_hour)
+
+                now = datetime.datetime.now()
                 await asyncio.sleep(60 - now.second)
-                await self.controller.update_deck()
+                if now.hour == 23 and now.minute == 59:
+                    await self.controller.maybe_update_deck(self)
+                    continue
+
+                await self.controller.maybe_update_key(
+                    self, 1, next_minute_image
+                )
+
+                if now.minute == 59:
+                    await self.controller.maybe_update_key(
+                        self, 0, next_hour_image
+                    )
             except asyncio.CancelledError:
                 break
+            last = now
             
 
 
