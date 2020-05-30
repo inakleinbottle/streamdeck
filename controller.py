@@ -36,7 +36,6 @@ class Controller:
         self.current_heartbeat_task = None
 
     async def set_next_page(self, page):
-        
         if inspect.isclass(page) and issubclass(page, Page):
             if (name:=page.__name__) in self.page_cache:
                 LOGGER.info(f"Loading cached paged {name}")

@@ -63,17 +63,17 @@ def cache(coro):
 class PageMeta(type):
 
     def __new__(cls, name, bases, ns):
-        multi_actions = [name for name, attr in ns.items() 
+        multi_actions = [nm for nm, attr in ns.items() 
                          if isinstance(attr, MultiAction)]
 
-        for name in multi_actions:
-            method = ns[name]
+        for nm in multi_actions:
+            method = ns[nm]
 
             short_press = method.short_press()
             long_press = method.long_press()
 
-            ns[name] = short_press
-            ns[f"alt_{name}"] = long_press
+            ns[nm] = short_press
+            ns[f"alt_{nm}"] = long_press
 
         new_cls = super().__new__(cls, name, bases, ns)
         PAGE_REGISTRY[name] = new_cls
