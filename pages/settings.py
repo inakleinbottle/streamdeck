@@ -3,6 +3,7 @@ import logging
 
 
 from .base import StreamDeckMiniPage, cache
+from .commands import BackAction
 
 LOGGER = logging.getLogger(__name__)
 
@@ -25,6 +26,4 @@ class SettingsPage(StreamDeckMiniPage):
     button_6_icon = "close.png"
 
 
-    async def button_6(self):
-        LOGGER.info("Back button pressed, returning to previous page")
-        await self.controller.return_to_previous_page()
+    botton_6 = BackAction()

@@ -8,9 +8,10 @@ from collections import defaultdict
 from PIL import Image, ImageDraw, ImageFont
 from StreamDeck.ImageHelpers import PILHelper
 
-from typing import TYPE_CHECKING
+from .commands import MultiAction
+
+from typing import TYPE_CHECKING, Dict, List, Optional
 if TYPE_CHECKING:
-    from typing import Dict, Optional
     from controller import Controller
 
 
@@ -62,6 +63,18 @@ def cache(coro):
 class PageMeta(type):
 
     def __new__(cls, name, bases, ns):
+        multi_actions = [name for name, attr in ns.items() 
+                         if isinstance(attr, MultiAction)]
+
+        for name in multi_actions:
+            method = ns[name]
+
+            short_press = method.short_press()
+            long_press = method.long_press()
+
+            ns[name] = short_press
+            ns[f"alt_{name}"] = long_press
+
         new_cls = super().__new__(cls, name, bases, ns)
         PAGE_REGISTRY[name] = new_cls
         return new_cls
@@ -96,9 +109,10 @@ class Page(metaclass=PageMeta):
         """
         Dispatcher for long press actions.
         """
-        func = getattr(self, f"alt_button_{button}", self.default_action)
-
-        await func()
+        if (func := getattr(self, f"alt_button_{button}", None)) is not None:
+            await func()
+        else:
+            await getattr(self, f"button_{button}", self.default_action())()
 
     async def dispatch(self, button, status):
         """
@@ -107,7 +121,6 @@ class Page(metaclass=PageMeta):
         Calls specific button action method. Also handles
         long press dispatching.
         """
-        
         async with self._lock:
             if status:
                 self._pressed = time.time()
@@ -134,9 +147,9 @@ class Page(metaclass=PageMeta):
         """
         pass
 
-    async def teardown(self):
+    async def clean_up(self):
         """
-        Teardown function called when the page is changed.
+        Clearup function called when the page is changed.
         """
         pass
 
@@ -204,6 +217,12 @@ class Page(metaclass=PageMeta):
         This should return a list of images to render on the deck.
         """
         pass
+
+    async def get_background_jobs(self) -> List[asyncio.Task]:
+        """
+        Get a list of the background tasks launched by 
+        """
+        return []
 
 
 
