@@ -84,7 +84,8 @@ class Controller:
         Trigger an update of the deck if the requesting page
         is active.
         """
-        if self.page_stack.get_status(page) == PageState.Active:
+        status = await self.page_stack.get_status(page)
+        if status == PageState.Active:
             self.update_deck()
 
     async def update_key(self, key, image):
@@ -99,7 +100,8 @@ class Controller:
         Trigger an update of a given key if the requesting page
         is active.
         """
-        if self.page_stack.get_status(page) == PageState.Active:
+        status = await self.page_stack.get_status(page)
+        if status == PageState.Active:
             await self.update_key(key, image)
 
     async def _set_image(self, button: int, image):
