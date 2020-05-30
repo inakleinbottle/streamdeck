@@ -82,9 +82,9 @@ class ClockPage(Page):
                 next_minute = (last.minute+1) % 60
                 next_hour = (last.hour+1) % 24
 
-                next_minute_minute = await render_num(next_minute)
+                next_minute_image = await render_num(next_minute)
                 if not next_minute:
-                    next_hour_hour = await render_num(next_hour)
+                    next_hour_image = await render_num(next_hour)
 
                 now = datetime.datetime.now()
                 await asyncio.sleep(60 - now.second)

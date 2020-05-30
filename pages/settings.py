@@ -26,4 +26,4 @@ class SettingsPage(StreamDeckMiniPage):
     button_6_icon = "close.png"
 
 
-    botton_6 = BackAction()
+    button_6 = BackAction()
