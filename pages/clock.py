@@ -96,7 +96,7 @@ class ClockPage(Page):
                     self, 1, next_minute_image
                 )
 
-                if now.minute == 59:
+                if last.minute == 59:
                     await self.controller.maybe_update_key(
                         self, 0, next_hour_image
                     )
