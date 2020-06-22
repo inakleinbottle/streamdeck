@@ -1,6 +1,6 @@
 import asyncio
 import datetime
-
+import traceback
 import logging
 
 from PIL import Image, ImageDraw, ImageFont
@@ -10,6 +10,23 @@ from .base import Page, cache
 from .commands import BackAction
 
 LOGGER = logging.getLogger(__name__)
+
+
+MINUTE_KEY = 1
+HOUR_KEY = 0
+
+
+async def wait_for_next_minute(ref_time):
+    """
+    Wait until the next clock minute relative to a reference time.
+    """
+    time_now = datetime.datetime.now()
+    LOGGER.debug(f"Time now {time_now}, relative time {ref_time}")
+    if time_now.minute == ref_time.minute:
+        LOGGER.debug(f"Sleeping for {60 - time_now.second} seconds")
+        await asyncio.sleep(60 - time_now.second)
+    return time_now
+
 
 class ClockPage(Page):
     """
@@ -35,7 +52,7 @@ class ClockPage(Page):
         LOGGER.info(f"Rendering number {number}")
         image = PILHelper.create_image(self.controller.deck)
 
-        text = str(number)
+        text = f"{number:02d}"
 
         font = await self.get_font(self.label_font, 50)
         draw = ImageDraw.Draw(image)
@@ -74,35 +91,47 @@ class ClockPage(Page):
 
     async def heartbeat(self):
         render_num = self.render_clock_number
-        last = datetime.datetime.now()
+        ref_time = datetime.datetime.now()
         next_minute_image = None
         next_hour_image = None
+
+        LOGGER.debug("Entering heartbeat loop")
         while True:
             try:
-                next_minute = (last.minute+1) % 60
-                next_hour = (last.hour+1) % 24
+                minute = ref_time.minute + 1
+                next_minute = minute % 60
+
+                update_hour = minute // 60
+                next_hour = (ref_time.hour + update_hour) % 24
+                LOGGER.debug(f"Heartbeat: {next_minute=}, {next_hour=}")
 
                 next_minute_image = await render_num(next_minute)
-                if not next_minute:
+                LOGGER.debug(f"Rendering minute {next_minute}")
+                if update_hour:
+                    LOGGER.debug(f"Rendering hour {next_hour}")
                     next_hour_image = await render_num(next_hour)
 
-                now = datetime.datetime.now()
-                await asyncio.sleep(60 - now.second)
-                if now.hour == 23 and now.minute == 59:
+                ref_time = await wait_for_next_minute(ref_time)
+
+
+                if ref_time.hour == 23 and ref_time.minute == 59:
                     await self.controller.maybe_update_deck(self)
                     continue
 
+                LOGGER.debug("Rendering next minute")
                 await self.controller.maybe_update_key(
-                    self, 1, next_minute_image
+                    self, MINUTE_KEY, next_minute_image
                 )
 
-                if last.minute == 59:
+                if update_hour:
+                    LOGGER.debug("Rendering next hour")
                     await self.controller.maybe_update_key(
-                        self, 0, next_hour_image
+                        self, HOUR_KEY, next_hour_image
                     )
             except asyncio.CancelledError:
                 break
-            last = now
+
+
             
 
 

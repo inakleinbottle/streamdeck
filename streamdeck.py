@@ -7,6 +7,7 @@ import os
 import sys
 from subprocess import DEVNULL
 import traceback
+import signal
 
 from StreamDeck.DeviceManager import DeviceManager
 
@@ -19,6 +20,16 @@ LOGGER = logging.getLogger(__name__)
 
 
 DECKS = {} # type: ignore
+
+
+def make_sigterm_cb(decks):
+
+    def func():
+        LOGGER.warning("Termination signal received, closing decks")
+        for controller in decks.values():
+            controller.shutdown()
+        sys.exit(0)
+    return func
 
 
 @asynccontextmanager
@@ -64,6 +75,11 @@ async def main():
     loop = asyncio.get_event_loop()
 
     #loop.set_exception_handler(exception_handler)
+
+
+    sigterm_cb = make_sigterm_cb(DECKS)
+    loop.add_signal_handler(signal.SIGTERM, sigterm_cb)
+    loop.add_signal_handler(signal.SIGINT, sigterm_cb)
 
     async with setup_decks():
         while True:

@@ -112,6 +112,13 @@ class Controller:
     async def setup(self):
         await self.current_page.setup()
 
+    def shutdown(self):
+        """
+        Gracefully stop controlling the deck
+        """
+        self.deck.reset()
+        self.deck.close()
+
     def heartbeat(self):
         pass
 

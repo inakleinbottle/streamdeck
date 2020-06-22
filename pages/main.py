@@ -118,9 +118,11 @@ class MainPage(Page):
             return False
 
     async def heartbeat(self):
+        LOGGER.warning("Starting heartbeat")
         while True:
             try:
                 await asyncio.sleep(self.heartbeat_time)
+                LOGGER.debug("Running main menu heartbeat")
                 if not await self.obs_conn_alive():
                     await self.connect_obs()
             except asyncio.CancelledError:

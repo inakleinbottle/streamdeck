@@ -218,7 +218,7 @@ class Page(metaclass=PageMeta):
         """
         pass
 
-    async def get_background_jobs(self) -> List[asyncio.Task]:
+    def get_background_jobs(self) -> List[asyncio.Task]:
         """
         Get a list of the background tasks launched by 
         """

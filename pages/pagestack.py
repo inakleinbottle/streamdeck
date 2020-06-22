@@ -60,14 +60,11 @@ class PageStack:
         self._lock = asyncio.Lock()
         self._root = root
 
-        self._stack = [root]
+        self._stack = []
         self._tasks = defaultdict(list)
+        self._push(root)
 
-    async def _push(self, page):
-
-        if page is self._stack[-1]:
-            LOGGER.debug(f"Page {page} currently active")
-            return
+    def _push(self, page):
 
         LOGGER.debug(f"Pushing {page} to stack")
 
@@ -79,7 +76,7 @@ class PageStack:
         self._tasks[name].append(task)
 
         LOGGER.debug(f"Setting up background tasks")
-        new_tasks = await page.get_background_jobs()
+        new_tasks = page.get_background_jobs()
         self._tasks[name].extend(new_tasks)
 
     async def current_page(self):
@@ -118,7 +115,12 @@ class PageStack:
         """
         LOGGER.debug(f"Pushing page {page} onto stack")
         async with self._lock:
-            await self._push(page)
+
+            if page is self._stack[-1]:
+                LOGGER.debug(f"Page {page} currently active")
+                return
+
+            self._push(page)
 
     async def cancel_jobs_for_page(self, page):
         """
